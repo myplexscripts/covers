@@ -51,8 +51,9 @@
         }
 
         /* ── Scrollbar ── */
-        ::-webkit-scrollbar { display: none; }
-        * { scrollbar-width: none; }
+        .scroll-area::-webkit-scrollbar,
+        .icon-grid::-webkit-scrollbar { display: none; }
+        .scroll-area, .icon-grid { scrollbar-width: none; }
 
         /* ── Layout ── */
         .app-shell {
@@ -128,10 +129,11 @@
             position: absolute;
             inset: 0;
             pointer-events: none;
-            opacity: 0.12;
+            opacity: 0.14;
             filter: blur(140px);
             transform: scale(1.4);
-            transition: background-color 1.2s ease, opacity 0.6s ease;
+            /* No transition — animating background-color on a blurred element
+               forces a GPU repaint every frame for the full duration. Instant is fine. */
         }
 
         /* ── Nav Tabs ── */
@@ -555,7 +557,6 @@
             border-radius: var(--radius-lg);
             background: rgba(255,255,255,0.02);
             cursor: pointer;
-            transition: all 0.18s;
             gap: 8px;
         }
         .photo-upload:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.04); }
@@ -573,9 +574,9 @@
             border-radius: var(--radius-sm);
             padding: 7px 12px;
             cursor: pointer;
-            transition: all 0.15s;
+            min-height: 44px;
         }
-        .btn-danger:hover { background: rgba(248,113,113,0.18); border-color: rgba(248,113,113,0.3); }
+        .btn-danger:hover { background: rgba(248,113,113,0.18); }
 
         /* ── Snap guides ── */
         .guide-line {
@@ -595,7 +596,7 @@
             bottom: calc(1.5rem + var(--sab));
             left: 50%;
             transform: translateX(-50%) translateY(12px);
-            background: rgba(244,244,245,0.96);
+            background: #f4f4f5; /* opaque — no backdrop-filter needed or wanted */
             color: #000;
             padding: 10px 20px;
             border-radius: 999px;
@@ -607,8 +608,6 @@
             z-index: 9999;
             opacity: 0;
             transition: opacity 0.22s, transform 0.22s cubic-bezier(0.16,1,0.3,1);
-            backdrop-filter: blur(12px);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
         #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
@@ -967,6 +966,7 @@
 
     let state = loadState();
     let iconImg = null, bgImg = null, dragging = false, renderQueued = false;
+    let iconCache = null; // { canvas, size, color } — avoids reallocating canvas every render
 
     function loadState() {
         try {
@@ -1086,14 +1086,17 @@
         if (!iconImg) return;
         const size = iconPixelSize();
         const { x, y, color } = state.icon;
-        const temp = document.createElement('canvas');
-        temp.width = temp.height = size;
-        const tCtx = temp.getContext('2d');
-        tCtx.drawImage(iconImg, 0, 0, size, size);
-        tCtx.globalCompositeOperation = 'source-in';
-        tCtx.fillStyle = color;
-        tCtx.fillRect(0, 0, size, size);
-        ctx.drawImage(temp, x - size/2, y - size/2);
+        if (!iconCache || iconCache.size !== size || iconCache.color !== color) {
+            const tmp = document.createElement('canvas');
+            tmp.width = tmp.height = size;
+            const tCtx = tmp.getContext('2d');
+            tCtx.drawImage(iconImg, 0, 0, size, size);
+            tCtx.globalCompositeOperation = 'source-in';
+            tCtx.fillStyle = color;
+            tCtx.fillRect(0, 0, size, size);
+            iconCache = { canvas: tmp, size, color };
+        }
+        ctx.drawImage(iconCache.canvas, x - size/2, y - size/2);
     }
 
     function renderText(W, H) {
@@ -1342,6 +1345,7 @@
         img.onload = () => {
             URL.revokeObjectURL(url);
             iconImg = img;
+            iconCache = null; // invalidate cached tinted canvas
             if (!state.icon.name) { state.icon.x = canvas.width/2; state.icon.y = canvas.height/2; }
             updateIcon({ name });
             $('#iconProps').classList.remove('hidden');
