@@ -73,8 +73,9 @@
             justify-content: center;
             position: relative;
             background: var(--bg);
-            padding: 1.5rem;
-            padding-top: max(5rem, calc(var(--sat) + 1.5rem));
+            /* Mobile: tight padding so inspector gets more room */
+            padding: 0.75rem 1rem;
+            padding-top: max(2.75rem, calc(var(--sat) + 0.75rem));
         }
         @media (min-width: 768px) {
             .stage { flex: 1; padding: 3rem; padding-top: 3rem; }
@@ -112,9 +113,11 @@
                 max-width 0.4s cubic-bezier(0.16, 1, 0.3, 1),
                 aspect-ratio 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        #canvas-wrap[data-format="square"] { aspect-ratio: 1/1; max-width: 460px; }
-        #canvas-wrap[data-format="poster"] { aspect-ratio: 2/3; max-width: 300px; }
+        /* Mobile: small canvas so inspector has room */
+        #canvas-wrap[data-format="square"] { aspect-ratio: 1/1; max-width: 220px; }
+        #canvas-wrap[data-format="poster"] { aspect-ratio: 2/3; max-width: 148px; }
         @media (min-width: 768px) {
+            #canvas-wrap[data-format="square"] { max-width: 460px; }
             #canvas-wrap[data-format="poster"] { max-width: 380px; }
         }
 
@@ -213,7 +216,11 @@
         }
         .seg-btn {
             flex: 1;
-            padding: 8px 6px;
+            min-height: 38px; /* 44pt target met by segment container padding */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 6px;
             border-radius: calc(var(--radius) - 3px);
             font-size: 10px;
             font-weight: 800;
@@ -246,6 +253,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            min-height: 44px; /* Apple HIG touch target */
         }
         .row-icon { color: var(--text-3); flex-shrink: 0; }
         .row-label {
@@ -287,7 +295,10 @@
         /* ── Shape Chips ── */
         .chip-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 12px; }
         .shape-chip {
-            padding: 10px;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             border-radius: var(--radius-sm);
             background: rgba(255,255,255,0.04);
             border: 1px solid var(--border);
@@ -300,34 +311,45 @@
         .shape-chip.active { background: var(--text-1); color: #000; border-color: var(--text-1); }
         .shape-chip:active { transform: scale(0.94); }
 
-        /* ── Palette List ── */
+        /* ── Palette Grid ── */
+        #palette-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+        }
         .palette-btn {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 12px 14px;
+            gap: 8px;
+            padding: 10px 12px;
+            min-height: 44px; /* Apple HIG */
             border-radius: var(--radius);
             background: rgba(255,255,255,0.03);
             border: 1px solid transparent;
             cursor: pointer;
             width: 100%;
+            overflow: hidden;
         }
         .palette-btn:hover:not(.active) { background: rgba(255,255,255,0.06); }
         .palette-btn.active { background: rgba(255,255,255,0.09); border-color: var(--border-hi); }
-        .palette-btn .dot-row { display: flex; margin-right: 2px; }
+        .palette-btn .dot-row { display: flex; flex-shrink: 0; }
         .palette-btn .dot {
-            width: 14px; height: 14px;
+            width: 12px; height: 12px;
             border-radius: 50%;
-            border: 2px solid var(--surface);
-            margin-left: -4px;
+            border: 1.5px solid var(--surface);
+            margin-left: -3px;
         }
         .palette-btn .dot:first-child { margin-left: 0; }
         .palette-btn .pal-name {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             color: var(--text-2);
             flex: 1;
             text-align: left;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            min-width: 0;
         }
         .palette-btn.active .pal-name { color: var(--text-1); }
         .palette-btn .pal-check { color: var(--accent-hi); flex-shrink: 0; }
@@ -379,7 +401,7 @@
         }
 
         /* ── Slider ── */
-        .slider-wrap { padding: 8px 0; position: relative; }
+        .slider-wrap { padding: 11px 0; position: relative; min-height: 44px; display: flex; flex-direction: column; justify-content: center; }
         .custom-range {
             -webkit-appearance: none;
             width: 100%;
@@ -448,7 +470,7 @@
             background: var(--raised);
             border: 1px solid var(--border);
             border-radius: var(--radius);
-            padding: 12px 14px 12px 42px;
+            padding: 13px 14px 13px 42px; /* 13+13+18 ≈ 44px */
             font-family: inherit;
             font-size: 11px;
             font-weight: 700;
@@ -711,7 +733,7 @@
                 <div id="subMesh" class="sub-tab-content active">
                     <div class="section">
                         <div class="section-label">Palette</div>
-                        <div id="palette-list" style="display:flex;flex-direction:column;gap:4px;"></div>
+                        <div id="palette-list"></div>
                     </div>
 
                     <!-- Custom editor -->
@@ -1552,6 +1574,9 @@
         if (!state.points || state.points.length === 0) generatePoints();
         else queueRender();
         safeCreateIcons();
+        // Re-render once fonts are loaded so wrapText uses correct Circular metrics.
+        // Without this, palette changes after font load cause the text position to jump.
+        document.fonts.ready.then(() => queueRender());
     }
 
     function bootstrap() {
