@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Covr Studio</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Covr Studio">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        @font-face { font-family: 'Circular'; src: url('https://dvdbsh.github.io/fonts/Circular/Circular-Book.ttf') format('truetype'); font-weight: 400; font-display: swap; }
+        @font-face { font-family: 'Circular'; src: url('https://dvdbsh.github.io/fonts/Circular/Circular-Bold.ttf') format('truetype'); font-weight: 700; font-display: swap; }
+        @font-face { font-family: 'Circular'; src: url('https://dvdbsh.github.io/fonts/Circular/Circular-Black.ttf') format('truetype'); font-weight: 900; font-display: swap; }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        :root {
+            --bg:        #080808;
+            --surface:   #111113;
+            --raised:    #18181b;
+            --border:    rgba(255,255,255,0.06);
+            --border-hi: rgba(255,255,255,0.11);
+            --text-1:    #f4f4f5;
+            --text-2:    #a1a1aa;
+            --text-3:    #52525b;
+            --accent:    #7c3aed;
+            --accent-hi: #8b5cf6;
+            --radius-sm: 10px;
+            --radius:    14px;
+            --radius-lg: 20px;
+            --radius-xl: 26px;
+            --sat: env(safe-area-inset-top);
+            --sab: env(safe-area-inset-bottom);
+            --sal: env(safe-area-inset-left);
+            --sar: env(safe-area-inset-right);
+        }
+
+        html { height: -webkit-fill-available; }
+
+        body {
+            font-family: 'Circular', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text-1);
+            margin: 0;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { display: none; }
+        * { scrollbar-width: none; }
+
+        /* ── Layout ── */
+        .app-shell {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            height: 100dvh;
+        }
+        @media (min-width: 768px) {
+            .app-shell { flex-direction: row; }
+        }
+
+        /* ── Stage ── */
+        .stage {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background: var(--bg);
+            padding: 1.5rem;
+            padding-top: max(5rem, calc(var(--sat) + 1.5rem));
+        }
+        @media (min-width: 768px) {
+            .stage { flex: 1; padding: 3rem; padding-top: 3rem; }
+        }
+
+        /* ── Inspector ── */
+        .inspector {
+            flex: 1;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
+        }
+        @media (min-width: 768px) {
+            .inspector {
+                width: 380px;
+                flex: none;
+                border-top: none;
+                border-left: 1px solid var(--border);
+            }
+        }
+
+        /* ── Canvas ── */
+        #canvas-wrap {
+            background: #0e0e10;
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            box-shadow:
+                0 0 0 1px var(--border),
+                0 32px 64px -16px rgba(0,0,0,0.7),
+                0 8px 16px -4px rgba(0,0,0,0.5);
+            transition:
+                max-width 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                aspect-ratio 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        #canvas-wrap[data-format="square"] { aspect-ratio: 1/1; max-width: 460px; }
+        #canvas-wrap[data-format="poster"] { aspect-ratio: 2/3; max-width: 300px; }
+        @media (min-width: 768px) {
+            #canvas-wrap[data-format="poster"] { max-width: 380px; }
+        }
+
+        #mainCanvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+
+        /* ── Glow ── */
+        #bg-glow {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0.12;
+            filter: blur(140px);
+            transform: scale(1.4);
+            transition: background-color 1.2s ease, opacity 0.6s ease;
+        }
+
+        /* ── Nav Tabs ── */
+        .nav-bar {
+            display: flex;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0 4px;
+            flex-shrink: 0;
+            overflow-x: auto;
+        }
+
+        .tab-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            padding: 14px 8px;
+            position: relative;
+            color: var(--text-3);
+            transition: color 0.2s;
+            cursor: pointer;
+            border: none;
+            background: none;
+            min-width: 0;
+        }
+        .tab-item .tab-label {
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .tab-item svg { transition: transform 0.2s; }
+        .tab-item:hover { color: var(--text-2); }
+        .tab-item.active { color: var(--text-1); }
+        .tab-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 2px;
+            background: var(--accent-hi);
+            border-radius: 2px 2px 0 0;
+        }
+        .tab-item.save-btn { color: #60a5fa; }
+        .tab-item.save-btn:hover { color: #93c5fd; }
+
+        /* ── Scroll area ── */
+        .scroll-area {
+            flex: 1;
+            overflow-y: auto;
+            min-height: 0;
+            padding: 20px 16px;
+            padding-bottom: calc(var(--sab) + 24px);
+        }
+        @media (min-width: 768px) {
+            .scroll-area { padding: 24px 20px; padding-bottom: 24px; }
+        }
+
+        /* ── Section ── */
+        .section { margin-bottom: 28px; }
+        .section:last-child { margin-bottom: 0; }
+        .section-label {
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-3);
+            margin-bottom: 10px;
+            padding-left: 2px;
+        }
+
+        /* ── Segment Control ── */
+        .segment {
+            display: flex;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 3px;
+            gap: 2px;
+        }
+        .seg-btn {
+            flex: 1;
+            padding: 8px 6px;
+            border-radius: calc(var(--radius) - 3px);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-3);
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: all 0.18s;
+            white-space: nowrap;
+        }
+        .seg-btn:hover:not(.active) { color: var(--text-2); background: rgba(255,255,255,0.04); }
+        .seg-btn.active {
+            background: var(--text-1);
+            color: #000;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+        }
+
+        /* ── Card ── */
+        .card {
+            background: var(--raised);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+        }
+        .card + .card { margin-top: 8px; }
+
+        /* ── Row (icon + label + control) ── */
+        .row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .row-icon { color: var(--text-3); flex-shrink: 0; }
+        .row-label {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-2);
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* ── Toggle Switch ── */
+        .switch {
+            width: 44px;
+            height: 26px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.07);
+            position: relative;
+            flex-shrink: 0;
+            cursor: pointer;
+            transition: background 0.22s, border-color 0.22s;
+        }
+        .switch .knob {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+            transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s;
+        }
+        .switch.on { background: var(--accent); border-color: var(--accent); }
+        .switch.on .knob { transform: translateX(18px); }
+
+        /* ── Shape Chips ── */
+        .chip-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 12px; }
+        .shape-chip {
+            padding: 10px;
+            border-radius: var(--radius-sm);
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            color: var(--text-3);
+            font-size: 11px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .shape-chip:hover:not(.active) { background: rgba(255,255,255,0.07); color: var(--text-2); }
+        .shape-chip.active { background: var(--text-1); color: #000; border-color: var(--text-1); }
+        .shape-chip:active { transform: scale(0.94); }
+
+        /* ── Palette List ── */
+        .palette-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: var(--radius);
+            background: rgba(255,255,255,0.03);
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.15s;
+            width: 100%;
+        }
+        .palette-btn:hover:not(.active) { background: rgba(255,255,255,0.06); border-color: var(--border); }
+        .palette-btn.active { background: rgba(255,255,255,0.09); border-color: var(--border-hi); }
+        .palette-btn .dot-row { display: flex; margin-right: 2px; }
+        .palette-btn .dot {
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            border: 2px solid var(--surface);
+            margin-left: -4px;
+            transition: transform 0.2s;
+        }
+        .palette-btn .dot:first-child { margin-left: 0; }
+        .palette-btn:hover .dot { transform: translateX(-1px); }
+        .palette-btn .pal-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-2);
+            flex: 1;
+            text-align: left;
+        }
+        .palette-btn.active .pal-name { color: var(--text-1); }
+        .palette-btn .pal-check { color: var(--accent-hi); flex-shrink: 0; }
+
+        /* ── Custom Slots ── */
+        .custom-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .custom-slot {
+            aspect-ratio: 1;
+            border-radius: var(--radius);
+            border: 2px solid transparent;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.18s;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+        }
+        .custom-slot:hover { transform: scale(1.04); }
+        .custom-slot.editing {
+            border-color: var(--accent-hi);
+            box-shadow: 0 0 0 3px rgba(139,92,246,0.25), inset 0 0 0 1px rgba(255,255,255,0.08);
+        }
+        .slot-label {
+            position: absolute;
+            bottom: 5px; left: 50%; transform: translateX(-50%);
+            font-size: 8px; font-weight: 800;
+            color: rgba(255,255,255,0.7);
+            background: rgba(0,0,0,0.45);
+            padding: 2px 5px;
+            border-radius: 6px;
+            backdrop-filter: blur(6px);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+        }
+
+        /* ── Swatch Grid ── */
+        .swatch-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+        .swatch {
+            aspect-ratio: 1;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+        }
+        .swatch:hover { transform: scale(1.12); }
+        .swatch.active {
+            border-color: #fff;
+            transform: scale(1.18);
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.15), inset 0 0 0 1px rgba(255,255,255,0.1);
+        }
+
+        /* ── Slider ── */
+        .slider-wrap { padding: 8px 0; position: relative; }
+        .custom-range {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 3px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            outline: none;
+            position: relative;
+            z-index: 1;
+        }
+        .custom-range::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px; height: 22px;
+            background: #fff;
+            border-radius: 50%;
+            border: 2px solid var(--accent-hi);
+            box-shadow: 0 0 12px rgba(139,92,246,0.45), 0 2px 4px rgba(0,0,0,0.4);
+            cursor: pointer;
+            transition: box-shadow 0.15s, transform 0.15s;
+        }
+        .custom-range:active::-webkit-slider-thumb {
+            transform: scale(1.15);
+            box-shadow: 0 0 20px rgba(139,92,246,0.6), 0 2px 4px rgba(0,0,0,0.4);
+        }
+        .slider-dots {
+            position: absolute;
+            top: 50%; left: 0; right: 0;
+            display: flex; justify-content: space-between;
+            padding: 0 2px;
+            pointer-events: none;
+            transform: translateY(-50%);
+        }
+        .slider-dot { width: 3px; height: 3px; border-radius: 50%; background: rgba(255,255,255,0.15); }
+
+        /* ── Tab content ── */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .sub-tab-content { display: none; }
+        .sub-tab-content.active { display: block; }
+
+        /* ── Textarea ── */
+        .title-input {
+            width: 100%;
+            background: var(--raised);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            font-family: inherit;
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--text-1);
+            outline: none;
+            resize: none;
+            transition: border-color 0.18s, box-shadow 0.18s;
+            line-height: 1.4;
+        }
+        .title-input::placeholder { color: var(--text-3); }
+        .title-input:focus {
+            border-color: var(--accent-hi);
+            box-shadow: 0 0 0 3px rgba(139,92,246,0.18);
+        }
+
+        /* ── Search input ── */
+        .search-input {
+            width: 100%;
+            background: var(--raised);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px 14px 12px 42px;
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-1);
+            outline: none;
+            transition: border-color 0.18s, box-shadow 0.18s;
+        }
+        .search-input::placeholder { color: var(--text-3); }
+        .search-input:focus {
+            border-color: var(--accent-hi);
+            box-shadow: 0 0 0 3px rgba(139,92,246,0.18);
+        }
+
+        /* ── Icon Grid ── */
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+            max-height: 38vh;
+            overflow-y: auto;
+            padding-right: 2px;
+        }
+        .icon-box {
+            aspect-ratio: 1;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid transparent;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s;
+            color: var(--text-3);
+        }
+        .icon-box:hover { background: rgba(255,255,255,0.08); color: var(--text-1); border-color: var(--border); }
+        .icon-box:active { transform: scale(0.92); }
+        .icon-group-label {
+            grid-column: span 4;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-3);
+            padding: 8px 2px 4px;
+        }
+        .icon-group-label:first-child { padding-top: 2px; }
+
+        /* ── Randomize button ── */
+        .btn-randomize {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 14px;
+            background: var(--accent);
+            border: none;
+            border-radius: var(--radius);
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #fff;
+            cursor: pointer;
+            transition: background 0.18s, transform 0.12s, box-shadow 0.18s;
+            box-shadow: 0 4px 20px -4px rgba(124,58,237,0.5);
+        }
+        .btn-randomize:hover { background: var(--accent-hi); box-shadow: 0 6px 24px -4px rgba(139,92,246,0.55); }
+        .btn-randomize:active { transform: scale(0.97); }
+
+        /* ── Photo upload ── */
+        .photo-upload {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            aspect-ratio: 16/9;
+            border: 2px dashed rgba(255,255,255,0.1);
+            border-radius: var(--radius-lg);
+            background: rgba(255,255,255,0.02);
+            cursor: pointer;
+            transition: all 0.18s;
+            gap: 8px;
+        }
+        .photo-upload:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.04); }
+        .photo-label { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+
+        /* ── Danger button ── */
+        .btn-danger {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #f87171;
+            background: rgba(248,113,113,0.1);
+            border: 1px solid rgba(248,113,113,0.2);
+            border-radius: var(--radius-sm);
+            padding: 7px 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-danger:hover { background: rgba(248,113,113,0.18); border-color: rgba(248,113,113,0.3); }
+
+        /* ── Snap guides ── */
+        .guide-line {
+            position: absolute;
+            background: var(--accent-hi);
+            opacity: 0.6;
+            pointer-events: none;
+            z-index: 100;
+            display: none;
+        }
+        .guide-v { width: 1px; top: 0; bottom: 0; }
+        .guide-h { height: 1px; left: 0; right: 0; }
+
+        /* ── Toast ── */
+        #toast {
+            position: fixed;
+            bottom: calc(1.5rem + var(--sab));
+            left: 50%;
+            transform: translateX(-50%) translateY(12px);
+            background: rgba(244,244,245,0.96);
+            color: #000;
+            padding: 10px 20px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.22s, transform 0.22s cubic-bezier(0.16,1,0.3,1);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* ── Spinner ── */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinning { animation: spin 0.55s linear; }
+
+        /* ── Custom Editor ── */
+        #customEditor .hint {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-3);
+        }
+
+        /* ── Divider ── */
+        .divider { height: 1px; background: var(--border); margin: 4px 0; }
+    </style>
+</head>
+<body>
+<div class="app-shell">
+
+    <!-- ── Stage ── -->
+    <main class="stage" id="viewport">
+        <div id="bg-glow"></div>
+        <div id="vGuide" class="guide-line guide-v"></div>
+        <div id="hGuide" class="guide-line guide-h"></div>
+        <div style="position:relative;display:flex;flex-direction:column;align-items:center;width:100%;">
+            <div id="canvas-wrap" data-format="square" style="width:100%;">
+                <canvas id="mainCanvas" width="1000" height="1000"></canvas>
+            </div>
+        </div>
+    </main>
+
+    <!-- ── Inspector ── -->
+    <aside class="inspector">
+
+        <!-- Nav -->
+        <nav class="nav-bar">
+            <button class="tab-item active" data-tab="cover">
+                <i data-lucide="layers" style="width:16px;height:16px;"></i>
+                <span class="tab-label">Cover</span>
+            </button>
+            <button class="tab-item" data-tab="text">
+                <i data-lucide="type" style="width:16px;height:16px;"></i>
+                <span class="tab-label">Title</span>
+            </button>
+            <button class="tab-item" data-tab="glyphs">
+                <i data-lucide="shapes" style="width:16px;height:16px;"></i>
+                <span class="tab-label">Glyphs</span>
+            </button>
+            <button class="tab-item save-btn" id="exportBtn">
+                <i data-lucide="share" style="width:16px;height:16px;"></i>
+                <span class="tab-label">Save</span>
+            </button>
+        </nav>
+
+        <!-- Scroll area -->
+        <div class="scroll-area">
+
+            <!-- ══ COVER TAB ══ -->
+            <div id="tabCover" class="tab-content active">
+
+                <!-- Format -->
+                <div class="section">
+                    <div class="section-label">Format</div>
+                    <div class="segment">
+                        <button class="seg-btn format-btn active" data-format="square">Square <span style="opacity:.45;font-weight:400;">1:1</span></button>
+                        <button class="seg-btn format-btn" data-format="poster">Poster <span style="opacity:.45;font-weight:400;">2:3</span></button>
+                    </div>
+                </div>
+
+                <!-- Mode -->
+                <div class="section">
+                    <div class="section-label">Background</div>
+                    <div class="segment">
+                        <button class="seg-btn sub-tab-btn active" data-sub="mesh">Mesh</button>
+                        <button class="seg-btn sub-tab-btn" data-sub="solid">Solid</button>
+                        <button class="seg-btn sub-tab-btn" data-sub="photo">Photo</button>
+                    </div>
+                </div>
+
+                <!-- Overlays -->
+                <div class="section">
+                    <div class="section-label">Overlays</div>
+
+                    <!-- Shape -->
+                    <div class="card">
+                        <div class="row">
+                            <i data-lucide="blocks" class="row-icon" style="width:15px;height:15px;"></i>
+                            <span class="row-label">Shape</span>
+                            <button id="shapeToggle" class="switch"><span class="knob"></span></button>
+                        </div>
+                        <div class="chip-grid">
+                            <button class="shape-chip" data-shape="0">1</button>
+                            <button class="shape-chip" data-shape="1">2</button>
+                            <button class="shape-chip" data-shape="2">3</button>
+                        </div>
+                    </div>
+
+                    <!-- Frame -->
+                    <div class="card" style="margin-top:8px;">
+                        <div class="row">
+                            <i data-lucide="scan" class="row-icon" style="width:15px;height:15px;"></i>
+                            <span class="row-label">Frame</span>
+                            <button id="frameToggle" class="switch"><span class="knob"></span></button>
+                        </div>
+                    </div>
+
+                    <!-- Blend -->
+                    <div style="margin-top:10px;">
+                        <div class="section-label">Overlay Blend</div>
+                        <div class="segment">
+                            <button class="seg-btn blend-btn active" data-blend="normal">Normal</button>
+                            <button class="seg-btn blend-btn" data-blend="overlay">Overlay</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ── MESH sub ── -->
+                <div id="subMesh" class="sub-tab-content active">
+                    <div class="section">
+                        <div class="section-label">Palette</div>
+                        <div id="palette-list" style="display:flex;flex-direction:column;gap:4px;"></div>
+                    </div>
+
+                    <!-- Custom editor -->
+                    <div id="customEditor" class="section hidden">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                            <div class="section-label" style="margin:0;">Build your palette</div>
+                            <span class="hint">Tap slot → tap color</span>
+                        </div>
+                        <div class="custom-slots" id="customSlots"></div>
+                        <div class="swatch-grid" id="customMasterGrid" style="margin-top:12px;"></div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-label">Blur</div>
+                        <div class="slider-wrap">
+                            <input type="range" id="blur-slider" min="0" max="4" step="1" value="2" class="custom-range">
+                            <div class="slider-dots">
+                                <div class="slider-dot"></div><div class="slider-dot"></div>
+                                <div class="slider-dot"></div><div class="slider-dot"></div>
+                                <div class="slider-dot"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <button id="btn-generate" class="btn-randomize">
+                            <i data-lucide="shuffle" id="refresh-icon" style="width:16px;height:16px;"></i>
+                            Randomize
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ── SOLID sub ── -->
+                <div id="subSolid" class="sub-tab-content">
+                    <div class="section">
+                        <div class="section-label">Background Color</div>
+                        <div class="swatch-grid" id="bgSwatches"></div>
+                    </div>
+                </div>
+
+                <!-- ── PHOTO sub ── -->
+                <div id="subPhoto" class="sub-tab-content">
+                    <div class="section">
+                        <div class="section-label">Cover Photo</div>
+                        <label class="photo-upload">
+                            <input type="file" id="imageInput" style="display:none;" accept="image/*">
+                            <i data-lucide="image" style="width:28px;height:28px;color:var(--text-3);"></i>
+                            <span class="photo-label" id="imageName">Pick a photo</span>
+                        </label>
+                    </div>
+                </div>
+
+            </div>
+            <!-- ══ /COVER TAB ══ -->
+
+            <!-- ══ TEXT TAB ══ -->
+            <div id="tabText" class="tab-content">
+                <div class="section">
+                    <div class="section-label">Cover Title</div>
+                    <textarea id="titleInput" class="title-input" rows="2" placeholder="Title..."></textarea>
+                </div>
+
+                <div class="section">
+                    <div class="card" style="display:flex;flex-direction:column;gap:18px;">
+
+                        <div>
+                            <div class="section-label">Size</div>
+                            <div class="segment">
+                                <button class="seg-btn size-btn active" data-size="90">Regular</button>
+                                <button class="seg-btn size-btn" data-size="135">Large</button>
+                            </div>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <div>
+                            <div class="section-label">Weight</div>
+                            <div class="segment">
+                                <button class="seg-btn weight-btn" data-weight="400" style="font-weight:400;font-size:15px;">B</button>
+                                <button class="seg-btn weight-btn active" data-weight="700" style="font-weight:700;font-size:15px;">B</button>
+                                <button class="seg-btn weight-btn" data-weight="900" style="font-weight:900;font-size:15px;">B</button>
+                            </div>
+                        </div>
+
+                        <div class="divider"></div>
+
+                        <div>
+                            <div class="section-label">Color</div>
+                            <div class="swatch-grid" id="textSwatches"></div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+            <!-- ══ /TEXT TAB ══ -->
+
+            <!-- ══ GLYPHS TAB ══ -->
+            <div id="tabGlyphs" class="tab-content">
+                <div class="section">
+                    <div style="position:relative;">
+                        <i data-lucide="search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--text-3);pointer-events:none;"></i>
+                        <input type="text" id="iconSearch" class="search-input" placeholder="Search glyphs">
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="icon-grid" id="iconGrid"></div>
+                </div>
+
+                <div id="iconProps" class="section hidden">
+                    <div class="card" style="display:flex;flex-direction:column;gap:16px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;">
+                            <div class="section-label" style="margin:0;">Glyph Options</div>
+                            <button class="btn-danger" id="clearIcon">Remove</button>
+                        </div>
+                        <div class="divider"></div>
+                        <div>
+                            <div class="section-label">Scale</div>
+                            <div class="slider-wrap">
+                                <input type="range" id="iconSize-slider" min="0" max="4" step="1" value="2" class="custom-range">
+                                <div class="slider-dots">
+                                    <div class="slider-dot"></div><div class="slider-dot"></div>
+                                    <div class="slider-dot"></div><div class="slider-dot"></div>
+                                    <div class="slider-dot"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="divider"></div>
+                        <div>
+                            <div class="section-label">Color</div>
+                            <div class="swatch-grid" id="iconSwatches"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- ══ /GLYPHS TAB ══ -->
+
+        </div><!-- /scroll-area -->
+    </aside>
+</div>
+
+<div id="toast">Saved</div>
+
+<script>
+(() => {
+    'use strict';
+
+    // ── CONSTANTS ──────────────────────────────────────────────────────
+
+    const FORMATS = { square: { w:1000, h:1000 }, poster: { w:1000, h:1500 } };
+    const SNAP_RATIOS = [0.1, 0.25, 0.333, 0.5, 0.666, 0.75, 0.9];
+    const SNAP_THRESHOLD = 25;
+    const BLUR_LEVELS = [0.15, 0.45, 0.75, 1.05, 1.35];
+    const ICON_SIZE_LEVELS = [120, 180, 250, 350, 500];
+    const STORAGE_KEY = 'covr-studio-v3';
+    const NUM_BLOBS = 12;
+    const OVERLAY_BASE = 'https://dvdbsh.github.io/covers/overlay/';
+
+    const ICON_GROUPS = [
+        { title: 'Music & Sound', icons: ['music','disc','headphones','mic','radio','list-music','cassette-tape','audio-lines','activity','volume-2','play','pause'] },
+        { title: 'Faces & Vibes',  icons: ['smile','frown','meh','laugh','heart','star','eye','flame','sparkles','zap'] },
+        { title: 'Nature & Objects', icons: ['sun','moon','cloud','waves','trees','leaf','rocket','globe','coffee','camera','gift','clock'] }
+    ];
+
+    const MASTER_PALETTE = [
+        '#F57387','#DC143C','#960A28','#F05F7D','#BE0A37','#780523',
+        '#FDA58C','#EE5005','#A52D19','#EB966E','#C8502D','#872D14',
+        '#FFAF91','#FF6E4B','#B93C23','#FFD7B9','#FF9B6E','#C35F3C',
+        '#FFE169','#FFB400','#B47800','#FFEB7D','#FFC800','#B98C00',
+        '#F5DC91','#E1AF46','#A0731E','#AAEB91','#5AD746','#379128',
+        '#CDDEC8','#8CA584','#587052','#B9D494','#749448','#446223',
+        '#7DCDCD','#009191','#005F5F','#91B4AA','#145041','#0A3228',
+        '#B4F5E1','#2DC8AA','#198770','#C3FAE6','#23CD9B','#148C66',
+        '#B4E1F5','#3CA5E1','#2873A5','#A0E1FF','#1EB4FF','#0F73B9',
+        '#82AFFF','#1E5ADC','#0F3796','#C3D7FF','#739BF5','#4B69B9',
+        '#AAA5C3','#4B4178','#2D2350','#D2AFFF','#8732FF','#5514B4',
+        '#E6CDFA','#B987E6','#7850A5','#F2E6FC','#D7BEF5','#9173B4',
+        '#CDA0B9','#873769','#551941','#FFA5DC','#E11487','#960A55',
+        '#FFC3E1','#FF80B9','#B43C73','#FFE1E6','#FFB9C6','#CD7D8C',
+        '#AAB4BE','#3C4B55','#232D37','#D2D7E1','#9196A5','#5A5F6E',
+        '#C3D2E1','#8191A5','#505F73'
+    ];
+
+    const PALETTES = {
+        'Crimson':['#F57387','#DC143C','#960A28'],
+        'Deep Berry':['#F05F7D','#BE0A37','#780523'],
+        'Persimmon':['#FDA58C','#EE5005','#A52D19'],
+        'Burnt Orange':['#EB966E','#C8502D','#872D14'],
+        'Coral':['#FFAF91','#FF6E4B','#B93C23'],
+        'Apricot':['#FFD7B9','#FF9B6E','#C35F3C'],
+        'Amber':['#FFE169','#FFB400','#B47800'],
+        'Bright Gold':['#FFEB7D','#FFC800','#B98C00'],
+        'Ochre':['#F5DC91','#E1AF46','#A0731E'],
+        'Leaf Green':['#AAEB91','#5AD746','#379128'],
+        'Sage':['#CDDEC8','#8CA584','#587052'],
+        'Moss':['#B9D494','#749448','#446223'],
+        'Dark Teal':['#7DCDCD','#009191','#005F5F'],
+        'Deep Forest':['#91B4AA','#145041','#0A3228'],
+        'Turquoise':['#B4F5E1','#2DC8AA','#198770'],
+        'Mint':['#C3FAE6','#23CD9B','#148C66'],
+        'Sky Blue':['#B4E1F5','#3CA5E1','#2873A5'],
+        'Azure':['#A0E1FF','#1EB4FF','#0F73B9'],
+        'Cobalt':['#82AFFF','#1E5ADC','#0F3796'],
+        'Cornflower':['#C3D7FF','#739BF5','#4B69B9'],
+        'Navy Indigo':['#AAA5C3','#4B4178','#2D2350'],
+        'Violet':['#D2AFFF','#8732FF','#5514B4'],
+        'Vivid Purple':['#E6CDFA','#B987E6','#7850A5'],
+        'Soft Lilac':['#F2E6FC','#D7BEF5','#9173B4'],
+        'Plum':['#CDA0B9','#873769','#551941'],
+        'Magenta':['#FFA5DC','#E11487','#960A55'],
+        'Hot Pink':['#FFC3E1','#FF80B9','#B43C73'],
+        'Dusty Pink':['#FFE1E6','#FFB9C6','#CD7D8C'],
+        'Charcoal':['#AAB4BE','#3C4B55','#232D37'],
+        'Steel Gray':['#D2D7E1','#9196A5','#5A5F6E'],
+        'Slate Blue':['#C3D2E1','#8191A5','#505F73']
+    };
+
+    const DEFAULT_CUSTOM = ['#DC143C','#FFC800','#1EB4FF'];
+
+    // ── STATE ──────────────────────────────────────────────────────────
+
+    const defaultState = () => ({
+        format: 'square', mode: 'mesh',
+        vibe: 'Crimson', customColors: DEFAULT_CUSTOM.slice(), customActiveSlot: 0,
+        bgColor: '#1c1c1e', chaosIndex: 2,
+        shapeOn: false, shapeIndex: 0, frameOn: false, blendMode: 'normal',
+        points: [],
+        title: '', fontSize: 90, fontWeight: 700, textColor: '#ffffff',
+        icon: { name: null, color: '#ffffff', x: 500, y: 500, sizeIndex: 2 }
+    });
+
+    let state = loadState();
+    let iconImg = null, bgImg = null, dragging = false, renderQueued = false;
+
+    function loadState() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (!raw) return defaultState();
+            const parsed = JSON.parse(raw);
+            const base = defaultState();
+            return { ...base, ...parsed, icon: { ...base.icon, ...(parsed.icon || {}) } };
+        } catch { return defaultState(); }
+    }
+
+    function saveState() {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+    }
+
+    function setState(partial, opts = {}) {
+        Object.assign(state, partial);
+        if (!opts.skipRender) queueRender();
+        if (!opts.skipSave) saveState();
+    }
+
+    function updateIcon(partial, opts = {}) {
+        state.icon = { ...state.icon, ...partial };
+        if (!opts.skipRender) queueRender();
+        if (!opts.skipSave) saveState();
+    }
+
+    // ── HELPERS ────────────────────────────────────────────────────────
+
+    const $ = s => document.querySelector(s);
+    const $$ = s => document.querySelectorAll(s);
+    const activePaletteColors = () => state.vibe === 'Custom' ? state.customColors : PALETTES[state.vibe];
+    const blurAmount = () => BLUR_LEVELS[state.chaosIndex];
+    const iconPixelSize = () => ICON_SIZE_LEVELS[state.icon.sizeIndex];
+
+    // ── CANVAS + RENDER ────────────────────────────────────────────────
+
+    const canvas = $('#mainCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function applyFormat() {
+        const fmt = FORMATS[state.format];
+        canvas.width = fmt.w;
+        canvas.height = fmt.h;
+        $('#canvas-wrap').setAttribute('data-format', state.format);
+    }
+
+    function queueRender() {
+        if (renderQueued) return;
+        renderQueued = true;
+        requestAnimationFrame(() => { renderQueued = false; render(); });
+    }
+
+    function render() {
+        const W = canvas.width, H = canvas.height;
+        ctx.clearRect(0, 0, W, H);
+        renderBackground(W, H);
+        renderOverlays(W, H);
+        renderIcon();
+        renderText(W, H);
+        updateGlow();
+    }
+
+    const overlayCache = {};
+    function getOverlay(key) {
+        let img = overlayCache[key];
+        if (!img) {
+            img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = queueRender;
+            img.onerror = () => {};
+            img.src = `${OVERLAY_BASE}${key}.png`;
+            overlayCache[key] = img;
+        }
+        return (img.complete && img.naturalWidth) ? img : null;
+    }
+
+    function renderOverlays(W, H) {
+        const blend = state.blendMode === 'overlay' ? 'overlay' : 'source-over';
+        if (state.shapeOn) {
+            const img = getOverlay(`shape_0${state.shapeIndex + 1}`);
+            if (img) { ctx.globalCompositeOperation = blend; ctx.drawImage(img, 0, 0, W, W); ctx.globalCompositeOperation = 'source-over'; }
+        }
+        if (state.frameOn) {
+            const img = getOverlay('frame');
+            if (img) { ctx.globalCompositeOperation = blend; ctx.drawImage(img, 0, H - W, W, W); ctx.globalCompositeOperation = 'source-over'; }
+        }
+    }
+
+    function renderBackground(W, H) {
+        if (state.mode === 'solid') { ctx.fillStyle = state.bgColor; ctx.fillRect(0,0,W,H); return; }
+        if (state.mode === 'photo' && bgImg) {
+            const s = Math.max(W/bgImg.width, H/bgImg.height);
+            const iw = bgImg.width*s, ih = bgImg.height*s;
+            ctx.drawImage(bgImg, (W-iw)/2, (H-ih)/2, iw, ih);
+            return;
+        }
+        const colors = activePaletteColors();
+        ctx.fillStyle = colors[0];
+        ctx.fillRect(0,0,W,H);
+        const scale = Math.max(W,H)/600;
+        ctx.filter = `blur(${blurAmount()*120*scale}px)`;
+        state.points.forEach(p => {
+            const cx=p.x*W, cy=p.y*H, r=p.radius*Math.max(W,H);
+            const g = ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+            g.addColorStop(0, p.color);
+            g.addColorStop(1, 'transparent');
+            ctx.fillStyle = g;
+            ctx.globalAlpha = p.opacity;
+            ctx.fillRect(cx-r,cy-r,r*2,r*2);
+        });
+        ctx.filter = 'none';
+        ctx.globalAlpha = 1.0;
+    }
+
+    function renderIcon() {
+        if (!iconImg) return;
+        const size = iconPixelSize();
+        const { x, y, color } = state.icon;
+        const temp = document.createElement('canvas');
+        temp.width = temp.height = size;
+        const tCtx = temp.getContext('2d');
+        tCtx.drawImage(iconImg, 0, 0, size, size);
+        tCtx.globalCompositeOperation = 'source-in';
+        tCtx.fillStyle = color;
+        tCtx.fillRect(0, 0, size, size);
+        ctx.drawImage(temp, x - size/2, y - size/2);
+    }
+
+    function renderText(W, H) {
+        ctx.fillStyle = state.textColor;
+        ctx.font = `${state.fontWeight} ${state.fontSize}px 'Circular', sans-serif`;
+        const lines = wrapText(state.title || 'UNTITLED COVER', W - 220);
+        const baseY = H - 120;
+        lines.forEach((l, i) => {
+            ctx.fillText(l, 110, baseY - (lines.length - 1 - i) * state.fontSize * 1.15);
+        });
+    }
+
+    function wrapText(text, max) {
+        const words = text.split(' '), lines = [];
+        let line = '';
+        words.forEach(w => {
+            if (ctx.measureText(line + w).width > max) { lines.push(line.trim()); line = w + ' '; }
+            else line += w + ' ';
+        });
+        lines.push(line.trim());
+        return lines;
+    }
+
+    function updateGlow() {
+        const color = state.mode === 'mesh' ? activePaletteColors()[0] : state.bgColor;
+        $('#bg-glow').style.backgroundColor = color;
+    }
+
+    function generatePoints() {
+        const colors = activePaletteColors();
+        const pts = [];
+        for (let i = 0; i < NUM_BLOBS; i++) {
+            pts.push({
+                x: Math.random()*1.6-0.3, y: Math.random()*1.6-0.3,
+                radius: Math.random()*0.5+0.3,
+                color: colors[Math.floor(Math.random()*colors.length)],
+                opacity: Math.random()*0.3+0.6
+            });
+        }
+        setState({ points: pts });
+    }
+
+    // ── PALETTE LIST ───────────────────────────────────────────────────
+
+    function renderPaletteList() {
+        const list = $('#palette-list');
+        list.innerHTML = '';
+        Object.keys(PALETTES).forEach(name => list.appendChild(makePaletteRow(name, PALETTES[name], false)));
+        list.appendChild(makePaletteRow('Custom', state.customColors, true));
+        syncPaletteSelection();
+    }
+
+    function makePaletteRow(name, colors, isCustom) {
+        const btn = document.createElement('button');
+        btn.className = 'palette-btn';
+        btn.dataset.vibe = name;
+        const dots = colors.slice(0,3).map(c => `<div class="dot" style="background:${c}"></div>`).join('');
+        const right = isCustom
+            ? '<i data-lucide="settings-2" style="width:13px;height:13px;color:var(--text-3);"></i>'
+            : `<span class="pal-check" style="opacity:0;"><i data-lucide="check" style="width:13px;height:13px;"></i></span>`;
+        btn.innerHTML = `<div class="dot-row">${dots}</div><span class="pal-name">${name}</span>${right}`;
+        btn.addEventListener('click', () => selectPalette(name));
+        return btn;
+    }
+
+    function selectPalette(name) {
+        setState({ vibe: name }, { skipRender: true });
+        syncPaletteSelection();
+        syncCustomEditorVisibility();
+        generatePoints();
+    }
+
+    function syncPaletteSelection() {
+        $$('.palette-btn').forEach(b => {
+            const active = b.dataset.vibe === state.vibe;
+            b.classList.toggle('active', active);
+            const check = b.querySelector('.pal-check');
+            if (check) check.style.opacity = active ? '1' : '0';
+        });
+    }
+
+    // ── CUSTOM PALETTE EDITOR ──────────────────────────────────────────
+
+    function renderCustomEditor() {
+        const slots = $('#customSlots');
+        slots.innerHTML = '';
+        state.customColors.forEach((color, idx) => {
+            const slot = document.createElement('button');
+            slot.className = 'custom-slot' + (idx === state.customActiveSlot ? ' editing' : '');
+            slot.style.backgroundColor = color;
+            slot.innerHTML = `<span class="slot-label">Slot ${idx+1}</span>`;
+            slot.addEventListener('click', () => { setState({ customActiveSlot: idx }, { skipRender: true }); renderCustomEditor(); });
+            slots.appendChild(slot);
+        });
+
+        const grid = $('#customMasterGrid');
+        grid.innerHTML = '';
+        const activeColor = state.customColors[state.customActiveSlot];
+        MASTER_PALETTE.forEach(color => {
+            const sw = document.createElement('button');
+            sw.className = 'swatch' + (color === activeColor ? ' active' : '');
+            sw.style.backgroundColor = color;
+            sw.addEventListener('click', () => {
+                const next = [...state.customColors];
+                next[state.customActiveSlot] = color;
+                setState({ customColors: next }, { skipRender: true });
+                renderCustomEditor();
+                refreshCustomRowDots();
+                if (state.vibe === 'Custom') generatePoints();
+            });
+            grid.appendChild(sw);
+        });
+    }
+
+    function refreshCustomRowDots() {
+        const btn = document.querySelector('.palette-btn[data-vibe="Custom"]');
+        if (!btn) return;
+        const row = btn.querySelector('.dot-row');
+        if (!row) return;
+        row.innerHTML = state.customColors.slice(0,3).map(c => `<div class="dot" style="background:${c}"></div>`).join('');
+    }
+
+    function syncCustomEditorVisibility() {
+        $('#customEditor').classList.toggle('hidden', state.vibe !== 'Custom');
+    }
+
+    // ── SWATCH GROUPS ──────────────────────────────────────────────────
+
+    function initSwatchGroup(containerSel, getValue, setValue) {
+        const container = $(containerSel);
+        container.innerHTML = '';
+        const current = getValue();
+        MASTER_PALETTE.forEach(color => {
+            const s = document.createElement('button');
+            s.className = 'swatch' + (color === current ? ' active' : '');
+            s.style.backgroundColor = color;
+            s.addEventListener('click', () => {
+                container.querySelectorAll('.swatch').forEach(el => el.classList.remove('active'));
+                s.classList.add('active');
+                setValue(color);
+            });
+            container.appendChild(s);
+        });
+    }
+
+    // ── TABS ───────────────────────────────────────────────────────────
+
+    function initTabs() {
+        $$('.tab-item[data-tab]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                $$('.tab-item').forEach(el => el.classList.remove('active'));
+                $$('.tab-content').forEach(el => el.classList.remove('active'));
+                btn.classList.add('active');
+                const id = 'tab' + btn.dataset.tab[0].toUpperCase() + btn.dataset.tab.slice(1);
+                $('#'+id).classList.add('active');
+            });
+        });
+
+        $$('.sub-tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                $$('.sub-tab-btn').forEach(el => el.classList.remove('active'));
+                $$('.sub-tab-content').forEach(el => el.classList.remove('active'));
+                btn.classList.add('active');
+                setState({ mode: btn.dataset.sub }, { skipRender: true });
+                const id = 'sub' + state.mode[0].toUpperCase() + state.mode.slice(1);
+                $('#'+id).classList.add('active');
+                queueRender();
+            });
+        });
+    }
+
+    function syncSubTab() {
+        $$('.sub-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.sub === state.mode));
+        $$('.sub-tab-content').forEach(el => el.classList.remove('active'));
+        const id = 'sub' + state.mode[0].toUpperCase() + state.mode.slice(1);
+        $('#'+id).classList.add('active');
+    }
+
+    // ── FORMAT TOGGLE ──────────────────────────────────────────────────
+
+    function initFormatToggle() {
+        $$('.format-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const next = btn.dataset.format;
+                if (next === state.format) return;
+                const oldF = FORMATS[state.format], newF = FORMATS[next];
+                state.icon = { ...state.icon, x: state.icon.x*(newF.w/oldF.w), y: state.icon.y*(newF.h/oldF.h) };
+                setState({ format: next }, { skipRender: true });
+                applyFormat();
+                syncFormatSelection();
+                queueRender();
+            });
+        });
+        syncFormatSelection();
+    }
+
+    function syncFormatSelection() {
+        $$('.format-btn').forEach(b => b.classList.toggle('active', b.dataset.format === state.format));
+    }
+
+    function syncOverlayUI() {
+        $('#shapeToggle').classList.toggle('on', state.shapeOn);
+        $('#frameToggle').classList.toggle('on', state.frameOn);
+        $$('.shape-chip').forEach(c => c.classList.toggle('active', +c.dataset.shape === state.shapeIndex));
+        $$('.blend-btn').forEach(b => b.classList.toggle('active', b.dataset.blend === state.blendMode));
+    }
+
+    // ── ICON GRID ──────────────────────────────────────────────────────
+
+    function loadIcons(filter = '') {
+        const grid = $('#iconGrid');
+        grid.innerHTML = '';
+        const q = filter.toLowerCase().trim();
+        if (!q) {
+            ICON_GROUPS.forEach(group => {
+                const h = document.createElement('div');
+                h.className = 'icon-group-label';
+                h.textContent = group.title;
+                grid.appendChild(h);
+                group.icons.forEach(name => grid.appendChild(makeIconBox(name)));
+            });
+        } else {
+            ICON_GROUPS.flatMap(g => g.icons).filter(n => n.includes(q))
+                .forEach(name => grid.appendChild(makeIconBox(name)));
+        }
+        safeCreateIcons();
+    }
+
+    function makeIconBox(name) {
+        const b = document.createElement('div');
+        b.className = 'icon-box';
+        b.dataset.iconName = name;
+        b.innerHTML = `<i data-lucide="${name}" style="width:22px;height:22px;"></i>`;
+        b.addEventListener('click', () => selectIcon(name, b));
+        return b;
+    }
+
+    function selectIcon(name, srcBox) {
+        const svg = srcBox.querySelector('svg');
+        if (!svg) return;
+        let str = new XMLSerializer().serializeToString(svg);
+        if (!str.includes('xmlns')) str = str.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+        const blob = new Blob([str], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            iconImg = img;
+            if (!state.icon.name) { state.icon.x = canvas.width/2; state.icon.y = canvas.height/2; }
+            updateIcon({ name });
+            $('#iconProps').classList.remove('hidden');
+        };
+        img.onerror = () => URL.revokeObjectURL(url);
+        img.src = url;
+    }
+
+    function restoreIconIfNeeded() {
+        if (!state.icon.name) return;
+        requestAnimationFrame(() => {
+            const box = document.querySelector(`#iconGrid [data-icon-name="${state.icon.name}"]`);
+            if (box) { selectIcon(state.icon.name, box); $('#iconProps').classList.remove('hidden'); }
+        });
+    }
+
+    // ── DRAG + SNAP ────────────────────────────────────────────────────
+
+    function getCanvasPos(e) {
+        const r = canvas.getBoundingClientRect();
+        const sx = canvas.width/r.width, sy = canvas.height/r.height;
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: (cx-r.left)*sx, y: (cy-r.top)*sy };
+    }
+
+    function snapWithGuides(x, y) {
+        const r = canvas.getBoundingClientRect();
+        const vg = $('#vGuide'), hg = $('#hGuide');
+        let vMatch = -1, hMatch = -1;
+        for (const ratio of SNAP_RATIOS) {
+            const px = ratio*canvas.width, py = ratio*canvas.height;
+            if (Math.abs(x-px) < SNAP_THRESHOLD) vMatch = px;
+            if (Math.abs(y-py) < SNAP_THRESHOLD) hMatch = py;
+        }
+        if (vMatch !== -1) { vg.style.display='block'; vg.style.left=(r.left+(vMatch*r.width/canvas.width))+'px'; }
+        else vg.style.display='none';
+        if (hMatch !== -1) { hg.style.display='block'; hg.style.top=(r.top+(hMatch*r.height/canvas.height))+'px'; }
+        else hg.style.display='none';
+        return { nx: vMatch !== -1 ? vMatch : x, ny: hMatch !== -1 ? hMatch : y };
+    }
+
+    function clearGuides() { $('#vGuide').style.display='none'; $('#hGuide').style.display='none'; }
+
+    function initDrag() {
+        const start = e => {
+            if (!iconImg) return;
+            const p = getCanvasPos(e);
+            if (Math.hypot(p.x-state.icon.x, p.y-state.icon.y) < iconPixelSize()/1.5) {
+                dragging = true;
+                if (e.cancelable) e.preventDefault();
+            }
+        };
+        const move = e => {
+            if (!dragging) return;
+            const p = getCanvasPos(e);
+            const snapped = snapWithGuides(p.x, p.y);
+            updateIcon({ x: snapped.nx, y: snapped.ny }, { skipSave: true });
+            if (e.cancelable) e.preventDefault();
+        };
+        const end = () => { if (!dragging) return; dragging=false; clearGuides(); saveState(); };
+        canvas.addEventListener('mousedown', start);
+        canvas.addEventListener('touchstart', start, { passive: false });
+        window.addEventListener('mousemove', move);
+        window.addEventListener('touchmove', move, { passive: false });
+        window.addEventListener('mouseup', end);
+        window.addEventListener('touchend', end);
+        window.addEventListener('touchcancel', end);
+    }
+
+    // ── CONTROLS WIRING ────────────────────────────────────────────────
+
+    function initControls() {
+        const ti = $('#titleInput');
+        ti.value = state.title;
+        ti.addEventListener('input', e => setState({ title: e.target.value }));
+
+        const bs = $('#blur-slider');
+        bs.value = state.chaosIndex;
+        bs.addEventListener('input', e => setState({ chaosIndex: +e.target.value }));
+
+        const is = $('#iconSize-slider');
+        is.value = state.icon.sizeIndex;
+        is.addEventListener('input', e => updateIcon({ sizeIndex: +e.target.value }));
+
+        $('#btn-generate').addEventListener('click', randomizeAll);
+
+        $('#clearIcon').addEventListener('click', () => {
+            iconImg = null;
+            updateIcon({ name: null });
+            $('#iconProps').classList.add('hidden');
+        });
+
+        $$('.size-btn').forEach(b => {
+            b.addEventListener('click', () => {
+                setState({ fontSize: parseInt(b.dataset.size) });
+                $$('.size-btn').forEach(x => x.classList.remove('active'));
+                b.classList.add('active');
+            });
+        });
+
+        $$('.weight-btn').forEach(b => {
+            b.addEventListener('click', () => {
+                setState({ fontWeight: parseInt(b.dataset.weight) });
+                $$('.weight-btn').forEach(x => x.classList.remove('active'));
+                b.classList.add('active');
+            });
+        });
+
+        $('#imageInput').addEventListener('change', e => {
+            const f = e.target.files[0];
+            if (!f) return;
+            const r = new FileReader();
+            r.onload = ev => {
+                const i = new Image();
+                i.onload = () => { bgImg = i; $('#imageName').textContent = f.name; queueRender(); };
+                i.src = ev.target.result;
+            };
+            r.readAsDataURL(f);
+        });
+
+        $('#iconSearch').addEventListener('input', e => loadIcons(e.target.value));
+
+        $('#shapeToggle').addEventListener('click', () => {
+            setState({ shapeOn: !state.shapeOn }, { skipRender: true });
+            syncOverlayUI(); queueRender();
+        });
+        $('#frameToggle').addEventListener('click', () => {
+            setState({ frameOn: !state.frameOn }, { skipRender: true });
+            syncOverlayUI(); queueRender();
+        });
+        $$('.shape-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                setState({ shapeIndex: +chip.dataset.shape, shapeOn: true }, { skipRender: true });
+                syncOverlayUI(); queueRender();
+            });
+        });
+        $$('.blend-btn').forEach(b => {
+            b.addEventListener('click', () => {
+                setState({ blendMode: b.dataset.blend }, { skipRender: true });
+                syncOverlayUI(); queueRender();
+            });
+        });
+
+        $('#exportBtn').addEventListener('click', exportPNG);
+
+        $$('.size-btn').forEach(b => b.classList.toggle('active', +b.dataset.size === state.fontSize));
+        $$('.weight-btn').forEach(b => b.classList.toggle('active', +b.dataset.weight === state.fontWeight));
+    }
+
+    function randomizeAll() {
+        const icon = $('#refresh-icon');
+        icon.classList.add('spinning');
+        setTimeout(() => {
+            if (state.vibe === 'Custom') {
+                const shuffled = [...MASTER_PALETTE].sort(() => Math.random()-0.5);
+                setState({ customColors: shuffled.slice(0,3) }, { skipRender: true });
+                renderCustomEditor();
+                refreshCustomRowDots();
+            } else {
+                const keys = Object.keys(PALETTES).filter(k => k !== state.vibe);
+                const next = keys[Math.floor(Math.random()*keys.length)];
+                setState({ vibe: next }, { skipRender: true });
+                syncPaletteSelection();
+            }
+            generatePoints();
+            icon.classList.remove('spinning');
+        }, 200);
+    }
+
+    // ── EXPORT ─────────────────────────────────────────────────────────
+
+    function exportPNG() {
+        const link = document.createElement('a');
+        link.download = `cover-${state.format}-${Date.now()}.png`;
+        link.href = canvas.toDataURL('image/png', 1.0);
+        link.click();
+        showToast('Saved to device');
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+        const t = $('#toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+    }
+
+    // ── KEYBOARD ───────────────────────────────────────────────────────
+
+    function initKeyboard() {
+        window.addEventListener('keydown', e => {
+            const tag = e.target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+            if (e.metaKey || e.ctrlKey) return;
+            const k = e.key.toLowerCase();
+            if (k === 'r') randomizeAll();
+            else if (k === 's') { e.preventDefault(); exportPNG(); }
+            else if (k === 'a') {
+                const next = state.format === 'square' ? 'poster' : 'square';
+                document.querySelector(`.format-btn[data-format="${next}"]`).click();
+            }
+        });
+    }
+
+    // ── INIT ───────────────────────────────────────────────────────────
+
+    function safeCreateIcons() {
+        if (window.lucide && typeof window.lucide.createIcons === 'function') window.lucide.createIcons();
+    }
+
+    function init() {
+        applyFormat();
+        renderPaletteList();
+        renderCustomEditor();
+        syncCustomEditorVisibility();
+        initSwatchGroup('#textSwatches', () => state.textColor, c => setState({ textColor: c }));
+        initSwatchGroup('#bgSwatches',   () => state.bgColor,   c => setState({ bgColor: c }));
+        initSwatchGroup('#iconSwatches', () => state.icon.color, c => updateIcon({ color: c }));
+        initTabs();
+        initFormatToggle();
+        initControls();
+        initDrag();
+        initKeyboard();
+        syncSubTab();
+        syncOverlayUI();
+        loadIcons();
+        restoreIconIfNeeded();
+        if (!state.points || state.points.length === 0) generatePoints();
+        else queueRender();
+        safeCreateIcons();
+    }
+
+    function bootstrap() {
+        const begin = Date.now();
+        (function wait() {
+            if (window.lucide && typeof window.lucide.createIcons === 'function') return init();
+            if (Date.now()-begin > 4000) return init();
+            setTimeout(wait, 40);
+        })();
+    }
+
+    document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', bootstrap) : bootstrap();
+})();
+</script>
+</body>
+</html>
